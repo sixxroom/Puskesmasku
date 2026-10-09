@@ -1,67 +1,80 @@
 <?php
+require_once "koneksi.php";
 session_start();
-require_once __DIR__ . "/config/db.php";
 
-// cek apakah sudah login
-if (isset($_SESSION['user_id'])) {
-    header('Location: dashboard.php');
+if (empty($_SESSION["user_id"]) || $_SESSION["role"] != "pasien") {
+    header("Location: login.php");
     exit;
 }
 
-$error = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+$q = $pdo->prepare("SELECT nama FROM users WHERE id = ?");
+$q->execute([$_SESSION["user_id"]]);
+$u = $q->fetch();
 
-    $username = $_POST['username'];
-    $password = $_POST['password'];
-
-    // PDO Query
-    $sql = "SELECT id, username, password, role, fullname 
-            FROM users 
-            WHERE username = ? LIMIT 1";
-    $stmt = $conn->prepare($sql);
-    $stmt->execute([$username]);
-    $row = $stmt->fetch();
-
-    if ($row && password_verify($password, $row['password'])) {
-        // Set session
-        $_SESSION['user_id'] = $row['id'];
-        $_SESSION['username'] = $row['username'];
-        $_SESSION['role'] = $row['role'];
-        $_SESSION['fullname'] = $row['fullname'];
-
-        header('Location: dashboard.php');
-        exit;
-    } else {
-        $error = 'Username atau password salah.';
-    }
+if (!$u) {
+    session_destroy();
+    header("Location: login.php");
+    exit;
 }
+
+$hari = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+$bulan = [
+    1=>'Januari','Februari','Maret','April','Mei','Juni',
+    'Juli','Agustus','September','Oktober','November','Desember'
+];
+
+$tanggal = $hari[date('w')] . ', ' . date('j') . ' ' .
+           $bulan[(int)date('n')] . ' ' . date('Y');
+
+$menu = [
+    ['Daftar Antrean','Daftarkan pemeriksaan','antrean.php'],
+    ['Jadwal Dokter','Lihat jadwal praktik','jadwal_dokter.php'],
+    ['Kode Pengambilan Obat','Cek status obat','cek_obat.php'],
+    ['Riwayat Pemeriksaan','Lihat pemeriksaan sebelumnya','riwayat.php']
+];
 ?>
-<!doctype html>
-<html>
 
+<!DOCTYPE html>
+<html lang="id">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Login - Puskesmas</title>
-    <link rel="stylesheet" href="css/styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Beranda Pasien</title>
+    <link rel="stylesheet" href="assets/css/style.css">
 </head>
+<body>
 
-<body class="center">
-    <div class="card">
-        <h2>Login Puskesmas</h2>
-        <?php if ($error): ?>
-            <div class="error"><?php echo htmlspecialchars($error); ?></div>
-        <?php endif; ?>
-        <form method="post">
-            <label>Username</label>
-            <input type="text" name="username" required>
-
-            <label>Password</label>
-            <input type="password" name="password" required>
-
-            <button type="submit">Login</button>
-        </form>
+<header class="navbar">
+    <div class="logo">Puskesmas Sehat</div>
+    <div class="nav-user">
+        <span class="nav-name"><?= htmlspecialchars($u['nama']) ?></span>
+        <a href="profil.php">Profil</a>
+        <a href="logout.php">Keluar</a>
     </div>
-</body>
+</header>
 
+<main class="container">
+    <section class="hero">
+        <p class="hero-date"><?= htmlspecialchars($tanggal) ?></p>
+        <h1>Selamat datang, <?= htmlspecialchars($u['nama']) ?>!</h1>
+        <p>Silakan pilih layanan kesehatan yang Anda butuhkan.</p>
+        <a href="profil.php" class="button">Lihat Profil Lengkap</a>
+    </section>
+
+    <h2 class="section-title">Layanan Pasien</h2>
+
+    <div class="grid menu-grid">
+        <?php foreach ($menu as $m): ?>
+        <a class="card menu-card"
+           href="pasien/<?= htmlspecialchars($m[2]) ?>">
+            <h3><?= htmlspecialchars($m[0]) ?></h3>
+            <p><?= htmlspecialchars($m[1]) ?></p>
+            <span>Lihat layanan →</span>
+        </a>
+        <?php endforeach; ?>
+    </div>
+</main>
+
+<footer class="footer">Puskesmas Sehat</footer>
+</body>
 </html>
